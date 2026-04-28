@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Älykkyystesti – Likert 1–5</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #eef3ff, #dce7ff);
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 900px;
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      color: #1f3b70;
+      margin-top: 0;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .btn-primary {
+      background: #1f6feb;
+      color: white;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .btn-secondary {
+      background: #e3ebff;
+      color: #1f3b70;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .question-box {
+      background: #f7f8ff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border: 1px solid #e0e4ff;
+    }
+
+    .scale-btn {
+      width: 100%;
+      padding: 14px 0;
+      border-radius: 12px;
+      border: none;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+      margin-bottom: 10px;
+    }
+
+    .scale-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+    }
+
+    .scale-btn.selected {
+      outline: 3px solid rgba(255,255,255,0.9);
+      transform: scale(1.05);
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .result-card {
+      background: #f7f8ff;
+      padding: 15px;
+      border-radius: 12px;
+      border: 1px solid #e0e4ff;
+    }
+
+    .result-title {
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .overall-score {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-top: 20px;
+      color: #1f3b70;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- START SCREEN -->
+    <div id="start-screen" class="screen active">
+      <h1>Älykkyystesti – Likert 1–5</h1>
+      <p style="text-align:center;">Testaa taide-, sosiaalisia- ja matemaattisia taitojasi.</p>
+      <button id="start-btn" class="btn btn-primary">Aloita testi</button>
+    </div>
+
+    <!-- QUIZ SCREEN -->
+    <div id="quiz-screen" class="screen">
+      <h2 id="progress-text"></h2>
+
+      <div class="question-box">
+        <p id="question-text"></p>
+      </div>
+
+      <div id="options-container"></div>
+
+      <button id="next-btn" class="btn btn-primary" disabled>Seuraava</button>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="result-screen" class="screen">
+      <h1>Tulokset</h1>
+
+      <div class="results-grid">
+        <div class="result-card">
+          <div class="result-title">Taide taidot</div>
+          <div id="arts-score"></div>
+          <div id="arts-comment"></div>
+        </div>
+
+        <div class="result-card">
+          <div class="result-title">Sosiaaliset taidot</div>
+          <div id="social-score"></div>
+          <div id="social-comment"></div>
+        </div>
+
+        <div class="result-card">
+          <div class="result-title">Matemaattiset taidot</div>
+          <div id="math-score"></div>
+          <div id="math-comment"></div>
+        </div>
+      </div>
+
+      <div class="overall-score" id="overall-score"></div>
+
+      <button id="restart-btn" class="btn btn-secondary">Tee testi uudelleen</button>
+    </div>
+
+  </div>
+
+  <script>
+    // -----------------------------
+    // Likert scale gradient colors
+    // -----------------------------
+    const scaleColors = {
+      1: "linear-gradient(135deg, #ff6b6b, #ff8e8e)",
+      2: "linear-gradient(135deg, #ffa36c, #ffbd8a)",
+      3: "linear-gradient(135deg, #ffd86c, #ffe89a)",
+      4: "linear-gradient(135deg, #7ed957, #a8f28a)",
+      5: "linear-gradient(135deg, #4dabf7, #74c0fc)"
+    };
+
+    // -----------------------------
+    // QUESTIONS (ALL)
+    // -----------------------------
+    const questions = [
+      // TAIDE TAIDOT — Kirjallisuus
+      { category: "arts", text: "Kirjoittaminen on paras tapa osoittaa luovuuttasi", scale: true },
+      { category: "arts", text: "Ymmärrät helposti kirjan tai runon merkityksen", scale: true },
+      { category: "arts", text: "Et tunne tylsyyttä kirjallisuustunneilla", scale: true },
+
+      // Musiikki
+      { category: "arts", text: "Pystyt seuraamaan musiikin melodiaa ja tahtia", scale: true },
+      { category: "arts", text: "Tunnet nuotin pelkästään kuuntelemalla", scale: true },
+      { category: "arts", text: "Opit soittamaan uutta soitinta nopeasti", scale: true },
+      { category: "arts", text: "Tunnistat soittimet laulussa", scale: true },
+
+      // Taide
+      { category: "arts", text: "Ymmärrät taideteosten merkityksen galleriassa", scale: true },
+      { category: "arts", text: "Piirrät taideteoksen mielikuvituksesta", scale: true },
+      { category: "arts", text: "Kopioit taideteoksen rakenteen helposti", scale: true },
+
+      // SOSIAALISET TAIDOT — Psykologiset
+      { category: "social", text: "Tunnistan omat tekoni sosiaalisissa tilanteissa", scale: true },
+      { category: "social", text: "Yritän ymmärtää toisen tunteita ennen syyttämistä", scale: true },
+      { category: "social", text: "Pysyn rauhallisena sosiaalisissa konflikteissa", scale: true },
+      { category: "social", text: "Pohdin vuorovaikutustilanteitani ja kehitystäni", scale: true },
+
+      // Kommunikointi
+      { category: "social", text: "Kuuntelen tarkasti keskeyttämättä", scale: true },
+      { category: "social", text: "Mukautan puhetapaani tilanteen mukaan", scale: true },
+      { category: "social", text: "Ilmaisen mielipiteeni rehellisesti ja kunnioittavasti", scale: true },
+
+      // Empatia
+      { category: "social", text: "Huomaan kehonkielen ja äänensävyn vihjeet", scale: true },
+      { category: "social", text: "Autan, jos joku tuntee olonsa ulkopuoliseksi", scale: true },
+      { category: "social", text: "Harkitsen syitä ennen kuin tuomitsen käytöksen", scale: true },
+
+      // MATEMAATTISET TAIDOT — Numeroiden ymmärtäminen
+      { category: "math", text: "Lasken numeroita päässäni nopeasti", scale: true },
+      { category: "math", text: "Ymmärrän numeroiden väliset suhteet", scale: true },
+      { category: "math", text: "Arvioin tarkasti", scale: true },
+      { category: "math", text: "En hämmenny suurista numeroista", scale: true },
+      { category: "math", text: "Vertailet numeerisia arvoja nopeasti", scale: true },
+
+      // Looginen ajattelu
+      { category: "math", text: "Löydän yhteyksiä numeeristen kaavojen välillä", scale: true },
+      { category: "math", text: "Nautin päättelyä vaativista ongelmista", scale: true },
+      { category: "math", text: "Ajattelen vaiheittain ratkaistakseni ongelmia", scale: true },
+      { category: "math", text: "Tunnistan kaavoja nopeasti", scale: true },
+      { category: "math", text: "Osaan selittää ajatteluprosessini", scale: true },
+
+      // Ongelmanratkaisu
+      { category: "math", text: "En luovuta vaikeiden ongelmien edessä", scale: true },
+      { category: "math", text: "Kokeilen useita menetelmiä", scale: true },
+      { category: "math", text: "Ratkaisen uudenlaisia ongelmia", scale: true },
+      { category: "math", text: "Järjestän ongelman tiedot hyvin", scale: true },
+      { category: "math", text: "Pystyn jakamaan ongelman pienempiin osiin", scale: true }
+    ];
+
+    // -----------------------------
+    // STATE
+    // -----------------------------
+    let currentIndex = 0;
+    let totalScore = 0;
+
+    const categoryScores = { arts: 0, social: 0, math: 0 };
+    const categoryTotals = {
+      arts: questions.filter(q => q.category === "arts").length,
+      social: questions.filter(q => q.category === "social").length,
+      math: questions.filter(q => q.category === "math").length
+    };
+
+    // -----------------------------
+    // ELEMENTS
+    // -----------------------------
+    const startScreen = document.getElementById("start-screen");
+    const quizScreen = document.getElementById("quiz-screen");
+    const resultScreen = document.getElementById("result-screen");
+
+    const startBtn = document.getElementById("start-btn");
+    const nextBtn = document.getElementById("next-btn");
+    const restartBtn = document.getElementById("restart-btn");
+
+    const progressText = document.getElementById("progress-text");
+    const questionText = document.getElementById("question-text");
+    const optionsContainer = document.getElementById("options-container");
+
+    const artsScoreEl = document.getElementById("arts-score");
+    const socialScoreEl = document.getElementById("social-score");
+    const mathScoreEl = document.getElementById("math-score");
+
+    const artsCommentEl = document.getElementById("arts-comment");
+    const socialCommentEl = document.getElementById("social-comment");
+    const mathCommentEl = document.getElementById("math-comment");
+
+    const overallScoreEl = document.getElementById("overall-score");
+
+    // -----------------------------
+    // SCREEN SWITCH
+    // -----------------------------
+    function showScreen(screen) {
+      [startScreen, quizScreen, resultScreen].forEach(s => s.classList.remove("active"));
+      screen.classList.add("active");
+    }
+
+    // -----------------------------
+    // RENDER QUESTION
+    // -----------------------------
+    function renderQuestion() {
+      const q = questions[currentIndex];
+
+      progressText.textContent = `Kysymys ${currentIndex + 1} / ${questions.length}`;
+      questionText.textContent = q.text;
+
+      optionsContainer.innerHTML = "";
+      nextBtn.disabled = true;
+
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.createElement("button");
+        btn.className = "scale-btn";
+        btn.textContent = i;
+        btn.style.background = scaleColors[i];
+
+        btn.addEventListener("click", () => handleScaleAnswer(i, q.category, btn));
+
+        optionsContainer.appendChild(btn);
+      }
+    }
+
+    // -----------------------------
+    // HANDLE ANSWER
+    // -----------------------------
+    function handleScaleAnswer(value, category, selectedBtn) {
+      const allBtns = document.querySelectorAll(".scale-btn");
+
+      allBtns.forEach(btn => {
+        btn.classList.remove("selected");
+        btn.disabled = true;
+        btn.style.opacity = "0.6";
+      });
+
+      selectedBtn.classList.add("selected");
+      selectedBtn.style.opacity = "1";
+
+      categoryScores[category] += value;
+      totalScore += value;
+
+      nextBtn.disabled = false;
+    }
+
+    // -----------------------------
+    // ANALYSIS FUNCTIONS
+    // -----------------------------
+    function analyzeArts(score, max) {
+      const r = score / max;
+      if (r >= 0.8) return "Olet erittäin luova ja taiteellinen.";
+      if (r >= 0.6) return "Sinulla on hyvä taiteellinen silmä.";
+      if (r >= 0.4) return "Taiteelliset taitosi kehittyvät harjoittelemalla.";
+      return "Luovuus voi kehittyä monella tavalla.";
+    }
+
+    function analyzeSocial(score, max) {
+      const r = score / max;
+      if (r >= 0.8) return "Olet empaattinen ja taitava vuorovaikutuksessa.";
+      if (r >= 0.6) return "Sinulla on hyvät sosiaaliset taidot.";
+      if (r >= 0.4) return "Sosiaaliset taitosi ovat kehittymässä.";
+      return "Varmuus sosiaalisissa tilanteissa kasvaa ajan myötä.";
+    }
+
+    function analyzeMath(score, max) {
+      const r = score / max;
+      if (r >= 0.8) return "Olet looginen ja analyyttinen ajattelija.";
+      if (r >= 0.6) return "Sinulla on hyvät matemaattiset taidot.";
+      if (r >= 0.4) return "Matemaattiset taitosi kehittyvät harjoittelemalla.";
+      return "Harjoittelu voi parantaa taitoja merkittävästi.";
+    }
+
+    // -----------------------------
+    // SHOW RESULTS
+    // -----------------------------
+    function showResults() {
+      showScreen(resultScreen);
+
+      const arts = categoryScores.arts;
+      const social = categoryScores.social;
+      const math = categoryScores.math;
+
+      const artsMax = categoryTotals.arts * 5;
+      const socialMax = categoryTotals.social * 5;
+      const mathMax = categoryTotals.math * 5;
+
+      artsScoreEl.textContent = `${arts} / ${artsMax}`;
+      socialScoreEl.textContent = `${social} / ${socialMax}`;
+      mathScoreEl.textContent = `${math} / ${mathMax}`;
+
+      artsCommentEl.textContent = analyzeArts(arts, artsMax);
+      socialCommentEl.textContent = analyzeSocial(social, socialMax);
+      mathCommentEl.textContent = analyzeMath(math, mathMax);
+
+      const totalMax = artsMax + socialMax + mathMax;
+      overallScoreEl.textContent = `Kokonaispisteet: ${totalScore} / ${totalMax}`;
+    }
+
+    // -----------------------------
+    // EVENT LISTENERS
+    // -----------------------------
+    startBtn.addEventListener("click", () => {
+      showScreen(quizScreen);
+      renderQuestion();
+    });
+
+    nextBtn.addEventListener("click", () => {
+      currentIndex++;
+      if (currentIndex >= questions.length) {
+        showResults();
+      } else {
+        renderQuestion();
+      }
+    });
+
+    restartBtn.addEventListener("click", () => {
+      location.reload();
+    });
+  </script>
+</body>
+</html>
